@@ -28,3 +28,5 @@ Para executar o modo de monitoramento, defina MODE como "monitor". Antes de roda
 
 Para que os três modos funcionem corretamente entre si, é essencial manter consistência entre FEATURES, FEATURE_DIM, SEQ_LEN, as estatísticas do treino e os artefatos salvos em CKPT_DIR. Em especial, os modos de teste e monitoramento precisam usar o mesmo conjunto de features do treinamento, o valor de SEQ_LEN precisa ser o mesmo do modelo salvo e o scaler e as medianas precisam ser compatíveis com o dataset de treino.
 
+O conversor só precisa ser usado caso queira converter um PCAP para treinar o modelo. Os arquivos de treino usados no artigo estão disponíveis já convertidos no link do Google Drive. Os arquivos PCAP dentro da pasta do Drive são usados para o monitoramento. Para usar o conversor, altere os caminhos para o PCAP, CSV e os endereços de IP dos hosts benignos e malignos, usados para atribuir as labels aos hosts respectivos.
+
