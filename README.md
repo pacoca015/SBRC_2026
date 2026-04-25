@@ -1,32 +1,359 @@
-Este projeto implementa um pipeline de detecção de ataques DDoS utilizando um modelo baseado em Transformer, com suporte para três modos principais de execução: treino, teste e monitoramento. O mesmo código pode ser reutilizado nos diferentes experimentos, desde que as variáveis de configuração sejam ajustadas corretamente antes da execução.
+# Detecção de Ataques DDoS em Tempo Real com Transformers sobre Tráfego de Rede
 
-O funcionamento geral do pipeline é o seguinte: primeiro, o código carrega um conjunto de features de rede a partir de um CSV de treino. Depois, realiza o pré-processamento dos dados, treina o modelo Transformer para classificação binária, salva os artefatos gerados e permite tanto testar o modelo em um CSV de janelas quanto monitorar tráfego a partir de um arquivo .pcap processado com TShark.
+Artefato referente ao artigo **"Detecção de Ataques DDoS em Tempo Real com Transformers sobre Tráfego de Rede"**, submetido ao SBRC 2025. O objetivo do artefato é permitir a reprodução dos experimentos de treinamento, teste e monitoramento de um modelo baseado em Transformer para detecção binária de ataques DDoS a partir de features extraídas de tráfego de rede.
 
-Antes de executar o código, é necessário instalar as bibliotecas utilizadas no projeto, como torch, joblib, numpy, pandas, matplotlib, tqdm, scikit-learn e x-transformers. Para o modo monitor, também é necessário ter o Wireshark/TShark instalado e configurado corretamente no sistema.
+---
 
-O comportamento do script é controlado pela variável MODE. Ela pode assumir os valores "train", "test" ou "monitor". Para rodar qualquer experimento, é importante revisar antes as principais variáveis de configuração do código.
+## Estrutura do README
 
-A variável CKPT_DIR define o diretório onde serão salvos ou carregados os artefatos do modelo, como pesos, scaler, medianas do treino e checkpoint principal. Esse caminho deve estar correto para que o treinamento salve os arquivos e para que os modos de teste e monitor consigam carregá-los depois.
+```
+README.md
+├── Título do projeto
+├── Estrutura do README
+├── Selos Considerados
+├── Informações Básicas
+├── Dependências
+├── Preocupações com Segurança
+├── Instalação
+├── Teste Mínimo
+├── Experimentos
+│   ├── Reivindicação #1 – Treinamento do Modelo
+│   ├── Reivindicação #2 – Avaliação por Janelas Temporais
+│   └── Reivindicação #3 – Monitoramento em Tempo Real via PCAP
+└── LICENSE
+```
 
-A variável TRAIN_CSV deve apontar para o arquivo CSV usado no treinamento. Esse arquivo também pode ser utilizado como referência para reconstruir estatísticas de pré-processamento, caso os artefatos salvos não estejam disponíveis.
+O repositório está organizado da seguinte forma:
 
-A variável TEST_WINDOWS_CSV é usada no modo de teste. Ela deve apontar para um arquivo com janelas já organizadas e precisa conter as colunas esperadas pelo código, incluindo as features do modelo, a coluna label e a coluna timestamp para separação em janela de tempo escolhido. Se essa variável não for preenchida, o modo de teste não executará a avaliação extra por janelas.
+```
+/
+├── Experimento 1/
+│   ├── ckpt_ddos_SYN_TREINO_NOVO_CERTO/   # Artefatos do modelo treinado
+│   ├── Dataset                             # Link/referência do dataset de treino ja convertido e para teste que não deve ser convertido, pois sera lido pelo pcap
+│   ├── conversor 2.py                      # Conversor PCAP → CSV
+│   └── transformer_espera.py               # Script principal
+├── Experimento 2/
+│   ├── ckpt_ddos_SYN_TREINO_NOVO_CERTO/
+│   ├── Dataset
+│   ├── conversor 2.py
+│   └── transformer_espera.py
+├── Experimento 3/
+│   ├── ckpt_ddos_SYN_TREINO_NOVO_CERTO/
+│   ├── Dataset
+│   ├── conversor 2.py
+│   └── transformer_espera.py
+└── README.md
+```
 
-As variáveis FEATURES e FEATURE_DIM precisam estar consistentes entre si. Se o dataset utilizado for diferente do dataset originalmente usado nos experimentos, será necessário alterar a lista da variável FEATURES, ajustar o valor de FEATURE_DIM e garantir que a última coluna continue sendo label. Em termos práticos, FEATURES deve conter todas as colunas de entrada do modelo mais a coluna label, enquanto FEATURE_DIM deve ser igual ao número de features sem contar a label. Ou seja, FEATURE_DIM deve corresponder a len(FEATURES) - 1. Se houver divergência entre as features definidas no código e as features salvas no checkpoint, os modos de teste e monitoramento irão falhar.
+Cada pasta de experimento é autossuficiente e contém o script principal, o conversor de PCAP, que so dever ser usado para um treinamen com um arquivo diferente do que o provido no google drive e os artefatos do modelo já treinado (pesos, scaler e medianas de treino).
 
-No modo monitor, também é necessário ajustar a variável TSHARK_BIN para apontar para o executável do TShark instalado na máquina. Além disso, a variável PCAP_PATH deve apontar para o arquivo .pcap que será lido e processado em janelas temporais.
+---
 
-As variáveis BENIGN_IPS e ATTACK_IPS também precisam ser ajustadas de acordo com o cenário do experimento. Em BENIGN_IPS devem ser colocados os IPs considerados tráfego legítimo. Em ATTACK_IPS devem ser colocados os IPs associados ao ataque. Esses conjuntos são usados para rotular as janelas no monitoramento para avaliações e geração da matriz de confusão, esses dados não são passados para o modelo. Se os IPs não forem compatíveis com o ambiente do experimento, as labels geradas poderão ficar incorretas.
+## Selos Considerados
 
-Outras variáveis importantes que podem ser ajustadas conforme o experimento são NUM_EPOCHS, BATCH_SIZE, LEARNING_RATE, SEQ_LEN, THRESHOLD_P, WINDOW_SECONDS, CHUNK_BATCH, CHUNK_MODE, CHUNK_STRIDE e AGGREGATE. O valor de SEQ_LEN define o tamanho da chunk para o Transformer. O valor de THRESHOLD_P define o limiar de probabilidade para classificar uma janela como ataque. WINDOW_SECONDS define o tamanho da janela temporal usada no monitoramento. Já CHUNK_MODE, CHUNK_STRIDE e AGGREGATE influenciam a forma como as decisões por janela são agregadas.
+Os selos considerados são: D, F, S e R .
 
-Para executar o modo de treino, defina MODE como "train". Antes de rodar, verifique se TRAIN_CSV, FEATURES, FEATURE_DIM e CKPT_DIR estão corretos. Nesse modo, o CSV de treino é carregado, os dados são pré-processados, o dataset é dividido em treino e teste, o modelo Transformer é treinado, as métricas básicas são exibidas e os artefatos são salvos em CKPT_DIR. Normalmente, os arquivos gerados incluem o checkpoint principal do modelo, o state_dict, a versão completa do modelo, o scaler do treino, as medianas do treino e, quando possível, uma versão em TorchScript.
+---
 
-Para executar o modo de teste, defina MODE como "test". Antes de rodar, verifique se CKPT_DIR, TEST_WINDOWS_CSV, FEATURES, FEATURE_DIM e SEQ_LEN estão corretos. Nesse modo, o modelo treinado é carregado a partir de CKPT_DIR, o scaler e as medianas do treino também são carregados, o arquivo de teste é lido, as janelas são avaliadas e são exibidas métricas como acurácia, precisão, recall, F1-score e matriz de confusão. O arquivo de teste precisa conter as mesmas features esperadas pelo modelo, além das colunas label e timestamp. Se o checkpoint tiver sido treinado com um SEQ_LEN diferente ou com outra lista de features, o script irá acusar incompatibilidade.
+## Informações Básicas
 
-Para executar o modo de monitoramento, defina MODE como "monitor". Antes de rodar, verifique se CKPT_DIR, TSHARK_BIN, PCAP_PATH, BENIGN_IPS, ATTACK_IPS, FEATURES, FEATURE_DIM e SEQ_LEN estão corretos. Nesse modo, o arquivo .pcap é lido com o TShark, os pacotes são convertidos em features, essas features são agrupadas em janelas temporais e o modelo realiza inferência em tempo de processamento. A saída normalmente mostra, para cada janela, a quantidade de linhas, a quantidade de chunks, a probabilidade máxima de ataque, o rótulo verdadeiro da janela, a predição da janela e a latência da inferência. Ao final, o código também pode gerar arquivos como histograma de latência e matriz de confusão em imagem.
+### Hardware
 
-Para que os três modos funcionem corretamente entre si, é essencial manter consistência entre FEATURES, FEATURE_DIM, SEQ_LEN, as estatísticas do treino e os artefatos salvos em CKPT_DIR. Em especial, os modos de teste e monitoramento precisam usar o mesmo conjunto de features do treinamento, o valor de SEQ_LEN precisa ser o mesmo do modelo salvo e o scaler e as medianas precisam ser compatíveis com o dataset de treino.
+| Componente | Mínimo recomendado |
+|---|---|
+| CPU | Intel/AMD x86-64, 4 núcleos |
+| RAM | 8 GB |
+| Disco | 10 GB livres |
+| GPU (opcional mas necessários para chegar nos tempos divulgados no artigo) | NVIDIA com CUDA 11.8+  |
 
-O conversor só precisa ser usado caso queira converter um PCAP para treinar o modelo. Os arquivos de treino usados no artigo estão disponíveis já convertidos no link do Google Drive. Os arquivos PCAP dentro da pasta do Drive são usados para o monitoramento. Para usar o conversor, altere os caminhos para o PCAP, CSV e os endereços de IP dos hosts benignos e malignos, usados para atribuir as labels aos hosts respectivos.
+Os experimentos foram originalmente executados em uma máquina com Windows 11, Python 3.10+ e GPU NVIDIA. O código é compatível com CPU, porém o treinamento será mais lento e os tempos de inferência na etapa monitor e teste serão consideravelmente maiores, porem os resultados das métricas irão se manter.
 
+### Software
+
+| Software | Versão testada |
+|---|---|
+| Python | 3.10 ou 3.11 |
+| CUDA Toolkit (opcional) | 11.8 ou 12.1 |
+| Wireshark / TShark | 4.x (Obrigatório somente modo `monitor`) |
+| Sistema Operacional | Windows 10/11 ou Linux |
+
+---
+
+## Dependências
+
+As bibliotecas Python necessárias são listadas abaixo com as versões testadas:
+
+| Biblioteca | Versão |
+|---|---|
+| torch | 2.6.0+cu124 |
+| torchaudio | 2.6.0+cu124 |
+| torchvision | 0.21.0+cu124 |
+| numpy | 2.4.3 |
+| pandas | 3.0.1 |
+| scikit-learn | 1.8.0 |
+| joblib | 1.5.3 |
+| matplotlib | 3.10.8 |
+| tqdm | 4.67.3 |
+| x-transformers | 2.17.9 |
+| einops | 0.8.2 |
+| einx | 0.4.2 |
+| scipy | 1.17.1 |
+
+Os datasets utilizados nos experimentos estão disponíveis no Google Drive:
+Experimento 1: https://drive.google.com/drive/folders/1eaEFRe_bdD-kFphalQ7G8VDqKnHDMdEL?usp=sharing
+Experimento 2: https://drive.google.com/drive/folders/1MijJX2FBqY7bXwlgqxWdPJxIg1aONqQX?usp=sharing (esta sem o arquivo pcap de teste por perca do arquivo por corrupção do arquivo)
+Experimento 3: https://drive.google.com/drive/folders/1H6ON9OxvnJOcOfs-gF_h7U3-AClh7mna?usp=sharing
+>   
+> Os arquivos CSV (para treino/teste) e os arquivos PCAP (para monitoramento) estão organizados por experimento.
+
+O TShark (Wireshark) é necessário **somente para o modo `monitor`**. Baixe em: https://www.wireshark.org/download.html
+
+---
+
+## Preocupações com Segurança
+
+O artefato realiza leitura de arquivos PCAP de tráfego de rede previamente capturado, **não gerando nem transmitindo tráfego malicioso**. Nenhuma funcionalidade de ataque é implementada. Os arquivos PCAP fornecidos contêm tráfego sintético capturado em ambiente controlado e não representam risco para os avaliadores.
+
+---
+
+## Instalação
+
+### 1. Clonar o repositório
+
+```bash
+git clone https://github.com/pacoca015/SEU_REPOSITORIO.git
+cd SEU_REPOSITORIO
+```
+
+### 2. Criar ambiente virtual (recomendado)
+
+```bash
+python -m venv venv
+
+# Windows
+venv\Scripts\activate
+
+# Linux/macOS
+source venv/bin/activate
+```
+
+### 3. Instalar dependências Python
+
+```bash
+pip install torch==2.6.0+cu124 torchvision==0.21.0+cu124 torchaudio==2.6.0+cu124 --index-url https://download.pytorch.org/whl/cu124
+pip install numpy==2.4.3 pandas==3.0.1 scikit-learn==1.8.0 joblib==1.5.3 matplotlib==3.10.8 tqdm==4.67.3 x-transformers==2.17.9 einops==0.8.2 einx==0.4.2 scipy==1.17.1
+Ou use o requirements.txt
+
+```
+
+> **Sem GPU:** substitua a linha do torch por:
+> ```bash
+> pip install torch torchvision torchaudio
+> ```
+
+### 4. Baixar os datasets
+
+Acesse o link do Google Drive disponível na seção **Dependências** e baixe os arquivos para as pastas correspondentes de cada experimento (`Experimento 1/`, `Experimento 2/`, `Experimento 3/`).
+
+### 5. (Somente modo monitor) Instalar TShark
+
+Instale o Wireshark/TShark e anote o caminho do executável (ex: `C:\Program Files\Wireshark\tshark.exe`). Atualize a variável `TSHARK_BIN` no script antes de executar.
+
+---
+
+## Teste Mínimo
+
+Este teste verifica que o ambiente está corretamente instalado carregando o modelo pré-treinado do **Experimento 1** e executando uma inferência de exemplo.
+
+### Passo 1 – Configurar o script
+
+Abra o arquivo `Experimento 1/transformer_espera.py` e verifique as seguintes variáveis:
+
+```python
+MODE     = "test"
+CKPT_DIR = "./ckpt_ddos_SYN_TREINO_NOVO_CERTO"   # pasta com artefatos do modelo
+TRAIN_CSV = "./Dataset/tt.csv"                     # CSV de referência para medianas
+TEST_WINDOWS_CSV = None                            # deixe None para o teste mínimo
+```
+
+### Passo 2 – Executar
+
+```bash
+cd "Experimento 1"
+python transformer_espera.py
+```
+
+### Resultado esperado
+
+```
+[TEST MODE] Nenhum TEST_WINDOWS_CSV fornecido.
+```
+
+Se essa mensagem aparecer sem erros, o modelo foi carregado com sucesso e o ambiente está funcional.
+
+## Experimentos
+
+### Reivindicação #1 – Treinamento do Modelo
+
+**Descrição:** Treinar o modelo Transformer para detecção de DDoS a partir de um CSV de tráfego rotulado, reproduzindo os resultados de acurácia, precisão, recall e F1-score reportados no artigo.
+
+**Arquivos:** `transformer_espera.py` (dentro da pasta do experimento desejado)
+
+**Configuração:** Edite as variáveis no topo do script:
+
+```python
+MODE      = "train"
+CKPT_DIR  = "./ckpt_ddos_SYN_TREINO_NOVO_CERTO"
+TRAIN_CSV = "./Dataset/tt.csv"
+
+NUM_EPOCHS    = 5
+BATCH_SIZE    = 50
+LEARNING_RATE = 1e-5
+SEQ_LEN       = 120
+THRESHOLD_P   = 0.90
+```
+
+**Execução:**
+
+```bash
+cd "Experimento 1"   # ou Experimento 2 / Experimento 3
+python transformer_espera.py
+```
+
+**Resultado esperado:** Ao final do treinamento, o terminal exibirá métricas no conjunto de teste (split 80/20) e salvará os artefatos em `CKPT_DIR`:
+
+```
+[Avaliação padrão - split por linhas]
+Acurácia:  ~0.99
+Precisão:  ~0.99
+Recall:    ~0.99
+F1-Score:  ~0.99
+Matriz de Confusão: [...]
+[OK] Artefatos salvos em ./ckpt_ddos_SYN_TREINO_NOVO_CERTO caso treinado com outro arquivo é recomendado preencher outro caminho, caso contrario os arquivos salvos irão sobrescrever os antigos
+```
+
+Os artefatos gerados incluem: `model.pt`, `model_state_dict.pt`, `model_full.pt`, `model_scripted.ts`, `scaler.joblib` e `train_medians.joblib`.
+
+---
+
+### Reivindicação #2 – Avaliação por Janelas Temporais (Modo Test)
+
+**Descrição:** Avaliar o modelo treinado sobre um CSV de teste organizado em janelas temporais de 5 segundos, verificando as métricas de detecção por janela reportadas no artigo.
+
+**Pré-requisito:** Ter executado a Reivindicação #1 (ou usar o modelo pré-treinado disponível na pasta `ckpt_ddos_SYN_TREINO_NOVO_CERTO`).
+
+**Configuração:**
+
+```python
+MODE             = "test"
+CKPT_DIR         = "./ckpt_ddos_SYN_TREINO_NOVO_CERTO"
+TRAIN_CSV        = "./Dataset/tt.csv"
+TEST_WINDOWS_CSV = "./Dataset/test_windows.csv"   # CSV com colunas: features + label + timestamp
+
+SEQ_LEN      = 120        # deve ser igual ao usado no treino
+THRESHOLD_P  = 0.90
+CHUNK_MODE   = "non_overlap"
+AGGREGATE    = "max"
+```
+
+> O arquivo de teste precisa conter as mesmas features do treino, mais as colunas `label` e `timestamp`.
+
+**Execução:**
+
+```bash
+cd "Experimento 1"
+python transformer_espera.py
+```
+
+
+**Resultado esperado:**
+
+```
+[Val. 5s - BINÁRIO (qualquer ataque na janela = 1)]
+Acurácia:  ~0.98
+Precisão:  ~0.97
+Recall:    ~0.99
+F1-Score:  ~0.98
+Matriz de Confusão (labels=[0,1]):
+[[TN  FP]
+ [FN  TP]]
+```
+
+---
+
+### Reivindicação #3 – Monitoramento em Tempo Real via PCAP (Modo Monitor)
+
+**Descrição:** Processar um arquivo PCAP usando TShark e executar inferência janela a janela (5 segundos), reproduzindo os resultados de latência e detecção em tempo real reportados no artigo.
+
+**Pré-requisito:** TShark instalado e modelo treinado disponível em `CKPT_DIR` e arquivo csv usado não treino do atual experimento.
+
+**Configuração:**
+
+```python
+MODE      = "monitor"
+CKPT_DIR  = "./ckpt_ddos_SYN_TREINO_NOVO_CERTO"
+TSHARK_BIN = r"C:\Program Files\Wireshark\tshark.exe"   # ajuste para seu sistema
+PCAP_PATH  = "./Dataset/captura.pcap"                   # PCAP disponível no Drive
+
+BENIGN_IPS = {"192.168.1.2", "192.168.1.5", ...}        # IPs legítimos do cenário para todos são os mesmo, não precisa alterar
+ATTACK_IPS = {"192.168.1.11", "192.168.2.2", ...}       # IPs atacantes do cenário para todos são os mesmo, não precisa alterar, entretanto, caso novo teste é preciso alterar para fazer a classificação correta das janelas, porem essa etapa se consiste mais na medição do tempo pos agregamento das janelas, as etapas de verificação de métricas de acerto que foram levadas em consideração foi a avaliação unitárias de chunks pos treino
+
+WINDOW_SECONDS = 5.0
+THRESHOLD_P    = 0.90
+CHUNK_BATCH    = 50
+```
+
+
+**Execução:**
+
+```bash
+cd "Experimento 1"
+python transformer_espera.py
+```
+
+
+
+**Resultado esperado:** Para cada janela de 5 segundos, o terminal exibirá:
+
+```
+[WIN 000000] rows=  x | chunks=x | cov=1.00 | p_attack=x | y_true=x | pred=x | lat_total=x
+
+...
+===== Avaliação Final por Arquivo (janela=5s) =====
+Acurácia: x
+F1-Score:  x
+Recall: x
+Precisão: x
+[LATÊNCIA] média= x | min= x | max= x
+
+Adicionalmente, são gerados os arquivos `latency_hist.png` e `confusion_matrix.png` no diretório de execução.
+
+---
+
+## LICENSE
+
+Este projeto está licenciado sob a **MIT License**.
+
+```
+MIT License
+
+Copyright (c) 2025
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
