@@ -101,7 +101,7 @@ As bibliotecas Python necessárias são listadas abaixo com as versões testadas
 
 Os datasets utilizados nos experimentos estão disponíveis no Google Drive:
 Experimento 1: https://drive.google.com/drive/folders/1eaEFRe_bdD-kFphalQ7G8VDqKnHDMdEL?usp=sharing
-Experimento 2: https://drive.google.com/drive/folders/1MijJX2FBqY7bXwlgqxWdPJxIg1aONqQX?usp=sharing (esta sem o arquivo pcap de teste por perca do arquivo por corrupção do arquivo)
+Experimento 2: https://drive.google.com/drive/folders/1MijJX2FBqY7bXwlgqxWdPJxIg1aONqQX?usp=sharing (esta sem o arquivo pcap de teste por perca do arquivo por corrupção)
 Experimento 3: https://drive.google.com/drive/folders/1H6ON9OxvnJOcOfs-gF_h7U3-AClh7mna?usp=sharing
 >   
 > Os arquivos CSV (para treino/teste) e os arquivos PCAP (para monitoramento) estão organizados por experimento.
