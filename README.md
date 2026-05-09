@@ -18,6 +18,7 @@ Os selos considerados são: D, F, S e R .
 ### Software
 - Python 3.12
 - [Wireshark/TShark](https://www.wireshark.org/download.html) instalado e acessível no PATH (necessário apenas para o modo monitor)
+- Dataset dos experimentos, presentes nos links para o Google Drive nas 3 pastas dos experimentos (somente para reprodução das métricas apresentadas no artigo)
 
 ### Estrutura esperada do repositório
 
