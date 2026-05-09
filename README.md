@@ -1,51 +1,6 @@
-# Detecção de Ataques DDoS em Tempo Real com Transformers sobre Tráfego de Rede
+# Detecção de DDoS em Tempo Real com Transformer
 
-Artefato referente ao artigo **"Detecção de Ataques DDoS em Tempo Real com Transformers sobre Tráfego de Rede"**, submetido ao SBRC 2025. O objetivo do artefato é permitir a reprodução dos experimentos de treinamento, teste e monitoramento de um modelo baseado em Transformer para detecção binária de ataques DDoS a partir de features extraídas de tráfego de rede.
-
----
-
-## Estrutura do README
-
-```
-README.md
-├── Título do projeto
-├── Estrutura do README
-├── Selos Considerados
-├── Informações Básicas
-├── Dependências
-├── Preocupações com Segurança
-├── Instalação
-├── Teste Mínimo
-├── Experimentos
-│   ├── Reivindicação #1 – Treinamento do Modelo
-│   ├── Reivindicação #2 – Avaliação por Janelas Temporais
-│   └── Reivindicação #3 – Monitoramento em Tempo Real via PCAP
-└── LICENSE
-```
-
-O repositório está organizado da seguinte forma:
-
-```
-/
-├── Experimento 1/
-│   ├── ckpt_ddos_SYN_TREINO_NOVO_CERTO/   # Artefatos do modelo treinado
-│   ├── Dataset                             # Link/referência do dataset de treino ja convertido e para teste que não deve ser convertido, pois sera lido pelo pcap
-│   ├── conversor 2.py                      # Conversor PCAP → CSV
-│   └── transformer_espera.py               # Script principal
-├── Experimento 2/
-│   ├── ckpt_ddos_SYN_TREINO_NOVO_CERTO/
-│   ├── Dataset
-│   ├── conversor 2.py
-│   └── transformer_espera.py
-├── Experimento 3/
-│   ├── ckpt_ddos_SYN_TREINO_NOVO_CERTO/
-│   ├── Dataset
-│   ├── conversor 2.py
-│   └── transformer_espera.py
-└── README.md
-```
-
-Cada pasta de experimento é autossuficiente e contém o script principal, o conversor de PCAP, que so dever ser usado para um treinamen com um arquivo diferente do que o provido no google drive e os artefatos do modelo já treinado (pesos, scaler e medianas de treino).
+Ferramenta de detecção de ataques DDoS baseada em modelo Transformer treinado sobre fluxos de rede. Suporta treinamento, monitoramento via PCAP e conversão de pcap para CSV (somente para novas capturas de tráfego).
 
 ---
 
@@ -55,280 +10,176 @@ Os selos considerados são: D, F, S e R .
 
 ---
 
-## Informações Básicas
+## Requisitos
 
 ### Hardware
-
-| Componente | Mínimo recomendado |
-|---|---|
-| CPU | Intel/AMD x86-64, 4 núcleos |
-| RAM | 8 GB |
-| Disco | 10 GB livres |
-| GPU (opcional mas necessários para chegar nos tempos divulgados no artigo) | NVIDIA com CUDA 11.8+  |
-
-Os experimentos foram originalmente executados em uma máquina com Windows 11, Python 3.10+ e GPU NVIDIA. O código é compatível com CPU, porém o treinamento será mais lento e os tempos de inferência na etapa monitor e teste serão consideravelmente maiores, porem os resultados das métricas irão se manter.
+- GPU NVIDIA com suporte a CUDA 12.4 (recomendado; CPU também funciona, porém mais lento)
 
 ### Software
+- Python 3.12
+- [Wireshark/TShark](https://www.wireshark.org/download.html) instalado e acessível no PATH (necessário apenas para o modo monitor)
 
-| Software | Versão testada |
-|---|---|
-| Python | 3.10 ou 3.11 |
-| CUDA Toolkit (opcional) | 11.8 ou 12.1 |
-| Wireshark / TShark | 4.x (Obrigatório somente modo `monitor`) |
-| Sistema Operacional | Windows 10/11 ou Linux |
+### Estrutura esperada do repositório
 
----
-
-## Dependências
-
-As bibliotecas Python necessárias são listadas abaixo com as versões testadas:
-
-| Biblioteca | Versão |
-|---|---|
-| torch | 2.6.0+cu124 |
-| torchaudio | 2.6.0+cu124 |
-| torchvision | 0.21.0+cu124 |
-| numpy | 2.4.3 |
-| pandas | 3.0.1 |
-| scikit-learn | 1.8.0 |
-| joblib | 1.5.3 |
-| matplotlib | 3.10.8 |
-| tqdm | 4.67.3 |
-| x-transformers | 2.17.9 |
-| einops | 0.8.2 |
-| einx | 0.4.2 |
-| scipy | 1.17.1 |
-
-Os datasets utilizados nos experimentos estão disponíveis no Google Drive:
-Experimento 1: https://drive.google.com/drive/folders/1eaEFRe_bdD-kFphalQ7G8VDqKnHDMdEL?usp=sharing
-Experimento 2: https://drive.google.com/drive/folders/1MijJX2FBqY7bXwlgqxWdPJxIg1aONqQX?usp=sharing (esta sem o arquivo pcap de teste por perca do arquivo por corrupção)
-Experimento 3: https://drive.google.com/drive/folders/1H6ON9OxvnJOcOfs-gF_h7U3-AClh7mna?usp=sharing
->   
-> Os arquivos CSV (para treino/teste) e os arquivos PCAP (para monitoramento) estão organizados por experimento.
-
-O TShark (Wireshark) é necessário **somente para o modo `monitor`**. Baixe em: https://www.wireshark.org/download.html
-
----
-
-## Preocupações com Segurança
-
-O artefato realiza leitura de arquivos PCAP de tráfego de rede previamente capturado, **não gerando nem transmitindo tráfego malicioso**. Nenhuma funcionalidade de ataque é implementada. Os arquivos PCAP fornecidos contêm tráfego sintético capturado em ambiente controlado e não representam risco para os avaliadores.
+```
+/
+  main.py
+  conversor_2.py
+  run.py
+  Requirements.txt
+  Experimento 1/
+    capturaSYN_treino_novo_CORRETA.csv
+    captura_teste_SYN.pcap
+    ckpt_ddos_SYN_TREINO_NOVO_CERTO/
+  Experimento 2/
+    capturaUDP_Novo_.csv
+    captura_udp_flood.pcap
+    ckpt_ddos_UDP_TREINO_NOVO_CERTO/
+  Experimento 3/
+    capturaSYN_UDP_treino_novo.csv
+    captura_teste_novo_udp_syn2.pcap
+    ckpt_ddos_UDP_SYN_TREINO_NOVO_CERTO/
+```
 
 ---
 
 ## Instalação
 
-### 1. Clonar o repositório
-
 ```bash
-git clone https://github.com/pacoca015/SEU_REPOSITORIO.git
-cd SEU_REPOSITORIO
-```
-
-### 2. Criar ambiente virtual (recomendado)
-
-```bash
-python -m venv venv
+# 1. Criar e ativar ambiente virtual com Python 3.12
+python3.12 -m venv .venv312
 
 # Windows
-venv\Scripts\activate
+.venv312\Scripts\Activate.ps1
 
 # Linux/macOS
-source venv/bin/activate
+source .venv312/bin/activate
+
+# 2. Instalar dependências gerais
+pip install -r Requirements.txt
+
+# 3. Instalar PyTorch com suporte a CUDA 12.4
+pip install torch==2.6.0+cu124 torchvision==0.21.0+cu124 torchaudio==2.6.0+cu124 \
+    --index-url https://download.pytorch.org/whl/cu124
 ```
 
-### 3. Instalar dependências Python
-
-```bash
-pip install torch==2.6.0+cu124 torchvision==0.21.0+cu124 torchaudio==2.6.0+cu124 --index-url https://download.pytorch.org/whl/cu124
-pip install numpy==2.4.3 pandas==3.0.1 scikit-learn==1.8.0 joblib==1.5.3 matplotlib==3.10.8 tqdm==4.67.3 x-transformers==2.17.9 einops==0.8.2 einx==0.4.2 scipy==1.17.1
-Ou use o requirements.txt
-
-```
-
-> **Sem GPU:** substitua a linha do torch por:
-> ```bash
-> pip install torch torchvision torchaudio
-> ```
-
-### 4. Baixar os datasets
-
-Acesse o link do Google Drive disponível na seção **Dependências** e baixe os arquivos para as pastas correspondentes de cada experimento (`Experimento 1/`, `Experimento 2/`, `Experimento 3/`).
-
-### 5. (Somente modo monitor) Instalar TShark
-
-Instale o Wireshark/TShark e anote o caminho do executável (ex: `C:\Program Files\Wireshark\tshark.exe`). Atualize a variável `TSHARK_BIN` no script antes de executar.
 
 ---
 
-## Teste Mínimo
+## Execução Minima 
 
-Este teste verifica que o ambiente está corretamente instalado carregando o modelo pré-treinado do **Experimento 1** e executando uma inferência de exemplo.
-
-### Passo 1 – Configurar o script
-
-Abra o arquivo `Experimento 1/transformer_espera.py` e verifique as seguintes variáveis:
-
-```python
-MODE     = "test"
-CKPT_DIR = "./ckpt_ddos_SYN_TREINO_NOVO_CERTO"   # pasta com artefatos do modelo
-TRAIN_CSV = "./Dataset/tt.csv"                     # CSV de referência para medianas
-TEST_WINDOWS_CSV = None                            # deixe None para o teste mínimo
-```
-
-### Passo 2 – Executar
+Toda a interação é feita pelo `run.py`, que guia o usuário por menus e gera automaticamente o script configurado para o experimento escolhido. Logo, esse script precisa ser executado sem erros e conectar aos outros 2 scripts, main e conversor. Para conferir o funcionamento, basta executar o treino em qualquer experimento e executar uma conversão em algum experimento.
 
 ```bash
-cd "Experimento 1"
-python transformer_espera.py
+python run.py
 ```
 
-### Resultado esperado
+O menu principal oferece três modos:
 
 ```
-[TEST MODE] Nenhum TEST_WINDOWS_CSV fornecido.
-```
-
-Se essa mensagem aparecer sem erros, o modelo foi carregado com sucesso e o ambiente está funcional.
-
-## Experimentos
-
-### Reivindicação #1 – Treinamento do Modelo
-
-**Descrição:** Treinar o modelo Transformer para detecção de DDoS a partir de um CSV de tráfego rotulado, reproduzindo os resultados de acurácia, precisão, recall e F1-score reportados no artigo.
-
-**Arquivos:** `transformer_espera.py` (dentro da pasta do experimento desejado)
-
-**Configuração:** Edite as variáveis no topo do script:
-
-```python
-MODE      = "train"
-CKPT_DIR  = "./ckpt_ddos_SYN_TREINO_NOVO_CERTO"
-TRAIN_CSV = "./Dataset/tt.csv"
-
-NUM_EPOCHS    = 5
-BATCH_SIZE    = 50
-LEARNING_RATE = 1e-5
-SEQ_LEN       = 120
-THRESHOLD_P   = 0.90
-```
-
-**Execução:**
-
-```bash
-cd "Experimento 1"   # ou Experimento 2 / Experimento 3
-python transformer_espera.py
-```
-
-**Resultado esperado:** Ao final do treinamento, o terminal exibirá métricas no conjunto de teste (split 80/20) e salvará os artefatos em `CKPT_DIR`:
-
-```
-[Avaliação padrão - split por linhas]
-Acurácia:  ~0.99
-Precisão:  ~0.99
-Recall:    ~0.99
-F1-Score:  ~0.99
-Matriz de Confusão: [...]
-[OK] Artefatos salvos em ./ckpt_ddos_SYN_TREINO_NOVO_CERTO caso treinado com outro arquivo é recomendado preencher outro caminho, caso contrario os arquivos salvos irão sobrescrever os antigos
-```
-
-Os artefatos gerados incluem: `model.pt`, `model_state_dict.pt`, `model_full.pt`, `model_scripted.ts`, `scaler.joblib` e `train_medians.joblib`.
-
----
-
-### Reivindicação #2 – Avaliação por Janelas Temporais (Modo Test)
-
-**Descrição:** Avaliar o modelo treinado sobre um CSV de teste organizado em janelas temporais de 5 segundos, verificando as métricas de detecção por janela reportadas no artigo.
-
-**Pré-requisito:** Ter executado a Reivindicação #1 (ou usar o modelo pré-treinado disponível na pasta `ckpt_ddos_SYN_TREINO_NOVO_CERTO`).
-
-**Configuração:**
-
-```python
-MODE             = "test"
-CKPT_DIR         = "./ckpt_ddos_SYN_TREINO_NOVO_CERTO"
-TRAIN_CSV        = "./Dataset/tt.csv"
-TEST_WINDOWS_CSV = "./Dataset/test_windows.csv"   # CSV com colunas: features + label + timestamp
-
-SEQ_LEN      = 120        # deve ser igual ao usado no treino
-THRESHOLD_P  = 0.90
-CHUNK_MODE   = "non_overlap"
-AGGREGATE    = "max"
-```
-
-> O arquivo de teste precisa conter as mesmas features do treino, mais as colunas `label` e `timestamp`.
-
-**Execução:**
-
-```bash
-cd "Experimento 1"
-python transformer_espera.py
-```
-
-
-**Resultado esperado:**
-
-```
-[Val. 5s - BINÁRIO (qualquer ataque na janela = 1)]
-Acurácia:  ~0.98
-Precisão:  ~0.97
-Recall:    ~0.99
-F1-Score:  ~0.98
-Matriz de Confusão (labels=[0,1]):
-[[TN  FP]
- [FN  TP]]
+[1] train     — treinar o modelo
+[2] monitor   — classificar fluxo em tempo real (PCAP)
+[3] conversor — converter PCAP em CSV para treino
 ```
 
 ---
 
-### Reivindicação #3 – Monitoramento em Tempo Real via PCAP (Modo Monitor)
+## Exemplos de execução
 
-**Descrição:** Processar um arquivo PCAP usando TShark e executar inferência janela a janela (5 segundos), reproduzindo os resultados de latência e detecção em tempo real reportados no artigo.
-
-**Pré-requisito:** TShark instalado e modelo treinado disponível em `CKPT_DIR` e arquivo csv usado não treino do atual experimento.
-
-**Configuração:**
-
-```python
-MODE      = "monitor"
-CKPT_DIR  = "./ckpt_ddos_SYN_TREINO_NOVO_CERTO"
-TSHARK_BIN = r"C:\Program Files\Wireshark\tshark.exe"   # ajuste para seu sistema
-PCAP_PATH  = "./Dataset/captura.pcap"                   # PCAP disponível no Drive
-
-BENIGN_IPS = {"192.168.1.2", "192.168.1.5", ...}        # IPs legítimos do cenário para todos são os mesmo, não precisa alterar
-ATTACK_IPS = {"192.168.1.11", "192.168.2.2", ...}       # IPs atacantes do cenário para todos são os mesmo, não precisa alterar, entretanto, caso novo teste é preciso alterar para fazer a classificação correta das janelas, porem essa etapa se consiste mais na medição do tempo pos agregamento das janelas, as etapas de verificação de métricas de acerto que foram levadas em consideração foi a avaliação unitárias de chunks pos treino
-
-WINDOW_SECONDS = 5.0
-THRESHOLD_P    = 0.90
-CHUNK_BATCH    = 50
-```
-
-
-**Execução:**
-
-```bash
-cd "Experimento 1"
-python transformer_espera.py
-```
-
-
-
-**Resultado esperado:** Para cada janela de 5 segundos, o terminal exibirá:
+### Exemplo 1 — Treino (Experimento 1: TCP SYN Flood)
 
 ```
-[WIN 000000] rows=  x | chunks=x | cov=1.00 | p_attack=x | y_true=x | pred=x | lat_total=x
+python run.py
 
+Modo de operacao:
+  [1] train     — treinar o modelo
+  Sua escolha: 1
+
+Configuracao de hiperparametros:
+  [1] Configuracao do artigo (valores exatos do SBRC)
+  Sua escolha: 1
+
+Selecione o experimento:
+  [1] Experimento 1 — TCP SYN Flood (dataset_TCP-GU)
+  Sua escolha: 1
+
+  Confirmar e executar? (s/n) [s]: s
+```
+
+Ao final do treino os artefatos (`model.pt`, `scaler.joblib`, `train_medians.joblib`) são salvos automaticamente na pasta `ckpt` do experimento.
+
+---
+
+### Exemplo 2 — Monitoramento em tempo real (Experimento 1)
+
+```
+python run.py
+
+Modo de operacao:
+  [2] monitor   — classificar fluxo em tempo real (PCAP)
+  Sua escolha: 2
+
+Configuracao de hiperparametros:
+  [1] Configuracao do artigo (valores exatos do SBRC)
+  Sua escolha: 1
+
+  Caminho do executavel TShark [C:\Program Files\Wireshark\tshark.exe]: 
+
+Selecione o experimento:
+  [1] Experimento 1 — TCP SYN Flood (dataset_TCP-GU)
+  Sua escolha: 1
+
+  Confirmar e executar? (s/n) [s]: s
+```
+
+A ferramenta processa o PCAP em janelas de 5 segundos e imprime para cada janela a probabilidade de ataque, a predição e a latência do modelo:
+
+```
+[WIN 000000] rows=  842 | chunks= 7 | cov=1.00 | p_attack=0.9823 | y_true=1 | pred=1 | lat_total=12.4 ms
+[WIN 000001] rows=  613 | chunks= 6 | cov=1.00 | p_attack=0.0231 | y_true=0 | pred=0 | lat_total=9.1 ms
 ...
 ===== Avaliação Final por Arquivo (janela=5s) =====
-Acurácia: x
-F1-Score:  x
-Recall: x
-Precisão: x
-[LATÊNCIA] média= x | min= x | max= x
-
-Adicionalmente, são gerados os arquivos `latency_hist.png` e `confusion_matrix.png` no diretório de execução.
+Acurácia:  0.9700
+Precisão:  0.9800
+Recall:    0.9600
+F1-Score:  0.9700
+```
 
 ---
+
+### Exemplo 3 — Conversão de PCAP para CSV
+
+```
+python run.py
+
+Modo de operacao:
+  [3] conversor — converter PCAP em CSV para treino
+  Sua escolha: 3
+
+Selecione o experimento:
+  [1] Experimento 1 — TCP SYN Flood (dataset_TCP-GU)
+  Sua escolha: 1
+
+  Confirmar e executar? (s/n) [s]: s
+```
+
+O CSV resultante é salvo em `Experimento 1/captura_convertida.csv`, pronto para ser usado no treino.
+
+---
+
+## Hiperparâmetros principais
+
+| Parâmetro | Valor (artigo) | Descrição |
+|---|---|---|
+| `SEQ_LEN` | 120 | Linhas por chunk de entrada |
+| `THRESHOLD_P` | 0.90 | Limiar de decisão (ataque vs. benigno) |
+| `WINDOW_SECONDS` | 5.0 | Tamanho da janela de análise (segundos) |
+| `CHUNK_BATCH` | 50 | Chunks processados por lote na inferência |
+| `LEARNING_RATE` | 1e-5 | Taxa de aprendizado |
+| `NUM_EPOCHS` | 5 | Épocas de treinamento |
+
+Todos os parâmetros podem ser alterados interativamente ao escolher a opção `[2] Nova configuracao` no menu de hiperparâmetros.
+
 
 ## LICENSE
 
